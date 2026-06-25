@@ -102,19 +102,26 @@ document.addEventListener('DOMContentLoaded', function () {
     btn.disabled = true;
 
     var res = await supabaseClient.auth.signUp({ email: email, password: password });
-    if (res.error) {
-      errorEl.textContent = res.error.message;
-      btn.textContent = 'Create account';
-      btn.disabled = false;
-      return;
-    }
     btn.textContent = 'Create account';
     btn.disabled = false;
 
-    if (res.data.user) {
+    if (res.error) {
+      errorEl.textContent = res.error.message || JSON.stringify(res.error);
+      return;
+    }
+
+    if (res.data.user && res.data.user.identities && res.data.user.identities.length === 0) {
+      errorEl.textContent = 'An account with this email already exists.';
+      return;
+    }
+
+    if (res.data.session) {
       await onUserLoggedIn(res.data.user);
-    } else {
+    } else if (res.data.user) {
       errorEl.textContent = 'Check your email to confirm your account.';
+      errorEl.style.color = 'var(--green)';
+    } else {
+      errorEl.textContent = 'Something went wrong. Please try again.';
     }
   }
 
