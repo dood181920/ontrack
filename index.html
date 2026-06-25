@@ -13,10 +13,63 @@
   <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
-  <div class="app-container">
+
+  <!-- Auth: Login -->
+  <div id="screen-auth-login" class="auth-screen">
+    <div class="auth-card">
+      <div class="logo auth-logo"><span class="logo-on">On</span><span class="logo-track">Track</span></div>
+      <h2 class="auth-heading">Welcome back</h2>
+      <p class="auth-subheading">Log in to access your assignments</p>
+      <div class="form-group">
+        <label class="form-label" for="login-email">Email</label>
+        <input class="form-input" type="email" id="login-email" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="login-password">Password</label>
+        <input class="form-input" type="password" id="login-password" placeholder="Password">
+      </div>
+      <div class="auth-error" id="login-error"></div>
+      <button class="btn-primary" id="login-btn">Log in</button>
+      <p class="auth-switch">Don't have an account? <a href="#" id="show-signup">Sign up</a></p>
+    </div>
+  </div>
+
+  <!-- Auth: Signup -->
+  <div id="screen-auth-signup" class="auth-screen hidden">
+    <div class="auth-card">
+      <div class="logo auth-logo"><span class="logo-on">On</span><span class="logo-track">Track</span></div>
+      <h2 class="auth-heading">Create your account</h2>
+      <p class="auth-subheading">Start tracking your assignments</p>
+      <div class="form-group">
+        <label class="form-label" for="signup-email">Email</label>
+        <input class="form-input" type="email" id="signup-email" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="signup-password">Password</label>
+        <input class="form-input" type="password" id="signup-password" placeholder="Min 6 characters">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="signup-confirm">Confirm password</label>
+        <input class="form-input" type="password" id="signup-confirm" placeholder="Confirm password">
+      </div>
+      <div class="auth-error" id="signup-error"></div>
+      <button class="btn-primary" id="signup-btn">Create account</button>
+      <p class="auth-switch">Already have an account? <a href="#" id="show-login">Log in</a></p>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading-screen" class="loading-screen hidden">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Loading your assignments...</p>
+  </div>
+
+  <!-- Main App -->
+  <div class="app-container hidden" id="app-container">
 
     <header class="mobile-header">
       <div class="logo"><span class="logo-on">On</span><span class="logo-track">Track</span></div>
+      <button class="logout-btn" id="mobile-logout-btn">Log out</button>
     </header>
 
     <aside class="sidebar">
@@ -44,6 +97,7 @@
       <div class="sidebar-footer">
         <div class="sidebar-footer-title">How it works</div>
         <p>OnTrack divides your remaining hours by days until the due date. If that number exceeds 70% of your daily availability, you're at risk. Above 100%, you're behind. Stay green.</p>
+        <button class="logout-btn sidebar-logout" id="sidebar-logout-btn">Log out</button>
       </div>
     </aside>
 
@@ -209,6 +263,8 @@
       navigator.serviceWorker.register('sw.js');
     }
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js"></script>
   <script src="config.js"></script>
   <script src="data.js"></script>
   <script src="app.js"></script>

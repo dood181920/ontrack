@@ -1,4 +1,4 @@
-var CACHE_NAME = 'ontrack-v1';
+var CACHE_NAME = 'ontrack-v2';
 var ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ var ASSETS = [
   './config.js',
   './data.js',
   './app.js',
+  './supabase.js',
   './manifest.json'
 ];
 

@@ -1,14 +1,187 @@
 document.addEventListener('DOMContentLoaded', function () {
-  const screens = {
+  var screens = {
     dashboard: document.getElementById('screen-dashboard'),
     assignments: document.getElementById('screen-assignments'),
     detail: document.getElementById('screen-detail'),
     add: document.getElementById('screen-add')
   };
 
-  let currentScreen = 'dashboard';
-  let detailAssignmentId = null;
-  let userEditedEstimate = false;
+  var currentScreen = 'dashboard';
+  var detailAssignmentId = null;
+  var userEditedEstimate = false;
+
+  // --- Auth ---
+
+  var elLogin = document.getElementById('screen-auth-login');
+  var elSignup = document.getElementById('screen-auth-signup');
+  var elLoading = document.getElementById('loading-screen');
+  var elApp = document.getElementById('app-container');
+
+  function showAuthScreen() {
+    elLogin.classList.remove('hidden');
+    elSignup.classList.add('hidden');
+    elLoading.classList.add('hidden');
+    elApp.classList.add('hidden');
+  }
+
+  function showLoading() {
+    elLogin.classList.add('hidden');
+    elSignup.classList.add('hidden');
+    elLoading.classList.remove('hidden');
+    elApp.classList.add('hidden');
+  }
+
+  function showApp() {
+    elLogin.classList.add('hidden');
+    elSignup.classList.add('hidden');
+    elLoading.classList.add('hidden');
+    elApp.classList.remove('hidden');
+  }
+
+  async function onUserLoggedIn(user) {
+    currentUser = user;
+    showLoading();
+    await loadUserData(user.id);
+    showApp();
+    var slider = document.getElementById('form-availability');
+    var sliderValue = document.getElementById('slider-value');
+    slider.value = appData.dailyAvailability;
+    sliderValue.textContent = appData.dailyAvailability + ' hrs/day';
+    navigateTo('dashboard');
+  }
+
+  async function handleLogin() {
+    var email = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    var errorEl = document.getElementById('login-error');
+    errorEl.textContent = '';
+
+    if (!email || !password) {
+      errorEl.textContent = 'Please enter your email and password.';
+      return;
+    }
+
+    var btn = document.getElementById('login-btn');
+    btn.textContent = 'Logging in...';
+    btn.disabled = true;
+
+    var res = await supabaseClient.auth.signInWithPassword({ email: email, password: password });
+    if (res.error) {
+      errorEl.textContent = res.error.message;
+      btn.textContent = 'Log in';
+      btn.disabled = false;
+      return;
+    }
+    btn.textContent = 'Log in';
+    btn.disabled = false;
+    await onUserLoggedIn(res.data.user);
+  }
+
+  async function handleSignup() {
+    var email = document.getElementById('signup-email').value.trim();
+    var password = document.getElementById('signup-password').value;
+    var confirm = document.getElementById('signup-confirm').value;
+    var errorEl = document.getElementById('signup-error');
+    errorEl.textContent = '';
+
+    if (!email || !password) {
+      errorEl.textContent = 'Please fill in all fields.';
+      return;
+    }
+    if (password.length < 6) {
+      errorEl.textContent = 'Password must be at least 6 characters.';
+      return;
+    }
+    if (password !== confirm) {
+      errorEl.textContent = 'Passwords do not match.';
+      return;
+    }
+
+    var btn = document.getElementById('signup-btn');
+    btn.textContent = 'Creating account...';
+    btn.disabled = true;
+
+    var res = await supabaseClient.auth.signUp({ email: email, password: password });
+    if (res.error) {
+      errorEl.textContent = res.error.message;
+      btn.textContent = 'Create account';
+      btn.disabled = false;
+      return;
+    }
+    btn.textContent = 'Create account';
+    btn.disabled = false;
+
+    if (res.data.user) {
+      await onUserLoggedIn(res.data.user);
+    } else {
+      errorEl.textContent = 'Check your email to confirm your account.';
+    }
+  }
+
+  async function handleLogout() {
+    if (timerState.intervalId) clearInterval(timerState.intervalId);
+    timerState.assignmentId = null;
+    timerState.startTime = null;
+    timerState.intervalId = null;
+    await supabaseClient.auth.signOut();
+    currentUser = null;
+    appData.assignments = [];
+    showAuthScreen();
+  }
+
+  document.getElementById('login-btn').addEventListener('click', handleLogin);
+  document.getElementById('signup-btn').addEventListener('click', handleSignup);
+
+  document.getElementById('login-password').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') handleLogin();
+  });
+  document.getElementById('signup-confirm').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') handleSignup();
+  });
+
+  document.getElementById('show-signup').addEventListener('click', function (e) {
+    e.preventDefault();
+    elLogin.classList.add('hidden');
+    elSignup.classList.remove('hidden');
+  });
+  document.getElementById('show-login').addEventListener('click', function (e) {
+    e.preventDefault();
+    elSignup.classList.add('hidden');
+    elLogin.classList.remove('hidden');
+  });
+
+  document.getElementById('mobile-logout-btn').addEventListener('click', handleLogout);
+  document.getElementById('sidebar-logout-btn').addEventListener('click', handleLogout);
+
+  if (supabaseReady) {
+    supabaseClient.auth.onAuthStateChange(function (event) {
+      if (event === 'SIGNED_OUT') showAuthScreen();
+    });
+  }
+
+  // --- Init auth ---
+  async function initAuth() {
+    if (!supabaseReady) {
+      showApp();
+      navigateTo('dashboard');
+      return;
+    }
+    try {
+      var res = await supabaseClient.auth.getSession();
+      if (res.data.session) {
+        await onUserLoggedIn(res.data.session.user);
+      } else {
+        showAuthScreen();
+      }
+    } catch (e) {
+      console.error('Auth init failed:', e);
+      showAuthScreen();
+    }
+  }
+
+  initAuth();
+
+  // --- Navigation ---
 
   function navigateTo(screen, opts) {
     if (screen === 'detail' && opts && opts.assignmentId) {
@@ -49,6 +222,8 @@ document.addEventListener('DOMContentLoaded', function () {
   function toDate(d) {
     return d instanceof Date ? d : new Date(d);
   }
+
+  // --- ETA ---
 
   function calcETA(a) {
     var now = new Date();
@@ -96,6 +271,8 @@ document.addEventListener('DOMContentLoaded', function () {
     return (Date.now() - timerState.startTime) / 3600000;
   }
 
+  // --- Formatting ---
+
   function formatHours(h) {
     if (h < 0) h = 0;
     var hrs = Math.floor(h);
@@ -125,7 +302,14 @@ document.addEventListener('DOMContentLoaded', function () {
     return '<span class="subject-badge" style="background:' + colors.bg + ';color:' + colors.text + '">' + subject + '</span>';
   }
 
-  // Dashboard
+  function escapeHTML(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // --- Dashboard ---
+
   function renderDashboard() {
     var active = getActiveAssignments();
     var now = new Date();
@@ -169,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function () {
           '<div class="progress-label">' + formatHours(eta.hoursLogged) + ' logged of ' + formatHours(a.estimatedHours) + ' estimated</div>' +
         '</div>' +
         '<div class="daily-needed ' + eta.statusClass + '">' + dailyLabel + '</div>' +
-        '<div class="card-actions"><button class="btn-timer-small" data-id="' + a.id + '">▶ Start timer</button></div>';
+        '<div class="card-actions"><button class="btn-timer-small" data-id="' + a.id + '">&#9654; Start timer</button></div>';
 
       card.addEventListener('click', function (e) {
         if (e.target.closest('.btn-timer-small')) return;
@@ -182,7 +366,6 @@ document.addEventListener('DOMContentLoaded', function () {
       listEl.appendChild(card);
     });
 
-    // Nudge banner
     var bannerEl = document.getElementById('nudge-banner');
     var redItem = sorted.find(function (i) { return i.eta.statusClass === 'red'; });
     var amberItem = sorted.find(function (i) { return i.eta.statusClass === 'amber'; });
@@ -203,7 +386,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Assignments list
+  // --- Assignments list ---
+
   function renderAssignmentsList() {
     var listEl = document.getElementById('assignments-list');
     listEl.innerHTML = '';
@@ -229,7 +413,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Detail view
+  // --- Detail view ---
+
   function renderDetail() {
     var a = getAssignment(detailAssignmentId);
     if (!a) return;
@@ -265,13 +450,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     var completeBtn = document.getElementById('detail-complete-btn');
-    if (a.completed) {
-      completeBtn.style.display = 'none';
-    } else {
-      completeBtn.style.display = 'block';
-    }
+    completeBtn.style.display = a.completed ? 'none' : 'block';
 
-    // Sessions
     var sessionsEl = document.getElementById('detail-sessions');
     sessionsEl.innerHTML = '';
     if (a.sessions.length === 0) {
@@ -289,7 +469,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Timer
+  // --- Timer ---
+
   function startTimer(assignmentId) {
     if (timerState.assignmentId && timerState.startTime) {
       stopTimer();
@@ -316,8 +497,10 @@ document.addEventListener('DOMContentLoaded', function () {
     var elapsed = (Date.now() - timerState.startTime) / 3600000;
     if (a && elapsed > 0.001) {
       a.hoursLogged += elapsed;
-      a.sessions.push({ date: new Date().toISOString(), durationHours: elapsed });
-      saveData();
+      var session = { date: new Date().toISOString(), durationHours: elapsed };
+      a.sessions.push(session);
+      saveSession(a.id, session);
+      updateAssignmentHours(a.id, a.hoursLogged);
     }
     clearInterval(timerState.intervalId);
     timerState.assignmentId = null;
@@ -341,7 +524,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!a) return;
     if (timerState.assignmentId === a.id) stopTimer();
     a.completed = true;
-    saveData();
+    markAssignmentComplete(a.id);
     navigateTo('assignments');
   });
 
@@ -349,7 +532,8 @@ document.addEventListener('DOMContentLoaded', function () {
     navigateTo('assignments');
   });
 
-  // Navigation
+  // --- Navigation ---
+
   document.querySelectorAll('.nav-item, .sidebar-link').forEach(function (el) {
     el.addEventListener('click', function () {
       var target = el.dataset.screen;
@@ -357,7 +541,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // Add assignment form
+  // --- Add assignment form ---
+
   var formType = document.getElementById('form-type');
   var formSize = null;
   var formEstimate = document.getElementById('form-estimate');
@@ -409,10 +594,10 @@ document.addEventListener('DOMContentLoaded', function () {
     var val = parseFloat(slider.value);
     sliderValue.textContent = val + ' hrs/day';
     appData.dailyAvailability = val;
-    saveData();
+    if (currentUser) updateDailyAvailability(currentUser.id, val);
   });
 
-  document.getElementById('add-form').addEventListener('submit', function (e) {
+  document.getElementById('add-form').addEventListener('submit', async function (e) {
     e.preventDefault();
     var valid = true;
     var name = document.getElementById('form-name').value.trim();
@@ -436,19 +621,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (!valid) return;
 
-    appData.assignments.push({
-      id: appData.nextId++,
+    var newAssignment = {
       name: name,
       subject: subject,
       type: type,
       size: formSize || 'Medium',
-      dateAssigned: dateAssigned ? new Date(dateAssigned + 'T00:00:00').toISOString() : new Date().toISOString(),
-      dueDate: new Date(dueDate + 'T00:00:00').toISOString(),
+      dateAssigned: dateAssigned || new Date().toISOString().split('T')[0],
+      dueDate: dueDate,
       estimatedHours: estimate,
       hoursLogged: 0,
-      sessions: [],
-      completed: false
-    });
+      completed: false,
+      sessions: []
+    };
+
+    var newId = await saveAssignment(newAssignment);
+    newAssignment.id = newId;
+    appData.assignments.push(newAssignment);
 
     document.getElementById('add-form').reset();
     document.querySelectorAll('.size-option').forEach(function (b) { b.classList.remove('active'); });
@@ -457,7 +645,8 @@ document.addEventListener('DOMContentLoaded', function () {
     suggestionNote.textContent = '';
     slider.value = appData.dailyAvailability;
     sliderValue.textContent = appData.dailyAvailability + ' hrs/day';
-    saveData();
+    var todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById('form-date-assigned').value = todayStr;
     navigateTo('dashboard');
   });
 
@@ -483,16 +672,6 @@ document.addEventListener('DOMContentLoaded', function () {
     else if (currentScreen === 'detail') renderDetail();
   }
 
-  function escapeHTML(str) {
-    var div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  // Set default date
   var todayStr = new Date().toISOString().split('T')[0];
   document.getElementById('form-date-assigned').value = todayStr;
-
-  // Init
-  navigateTo('dashboard');
 });
