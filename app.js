@@ -46,13 +46,17 @@ document.addEventListener('DOMContentLoaded', function () {
     return appData.assignments.filter(function (a) { return !a.completed; });
   }
 
+  function toDate(d) {
+    return d instanceof Date ? d : new Date(d);
+  }
+
   function calcETA(a) {
     var now = new Date();
     now.setHours(0, 0, 0, 0);
     var elapsed = getTimerElapsedHours(a.id);
     var logged = a.hoursLogged + elapsed;
     var remaining = Math.max(0, a.estimatedHours - logged);
-    var diffMs = a.dueDate.getTime() - now.getTime();
+    var diffMs = toDate(a.dueDate).getTime() - now.getTime();
     var daysRem = Math.max(0, Math.floor(diffMs / 86400000));
     var dueToday = daysRem === 0;
     var divisor = dueToday ? 0.5 : daysRem;
@@ -128,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function () {
     now.setHours(0, 0, 0, 0);
     var weekEnd = new Date(now);
     weekEnd.setDate(weekEnd.getDate() + 7);
-    var dueThisWeek = active.filter(function (a) { return a.dueDate <= weekEnd; }).length;
+    var dueThisWeek = active.filter(function (a) { return toDate(a.dueDate) <= weekEnd; }).length;
 
     document.getElementById('stat-active').textContent = active.length;
     document.getElementById('stat-due-week').textContent = dueThisWeek;
@@ -143,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
     sorted.forEach(function (item) {
       var a = item.assignment;
       var eta = item.eta;
-      var dueLabel = eta.dueToday ? 'Due today' : 'Due ' + formatDate(a.dueDate);
+      var dueLabel = eta.dueToday ? 'Due today' : 'Due ' + formatDate(toDate(a.dueDate));
       var daysLabel = eta.dueToday ? '' : ' · ' + eta.daysRemaining + ' day' + (eta.daysRemaining !== 1 ? 's' : '') + ' left';
       var dailyLabel = eta.status === 'complete'
         ? 'Estimated hours complete'
@@ -215,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function () {
         '<div class="list-row-info">' +
           subjectBadgeHTML(a.subject) +
           '<div class="list-row-name">' + escapeHTML(a.name) + '</div>' +
-          '<div class="list-row-due">Due ' + formatDate(a.dueDate) + '</div>' +
+          '<div class="list-row-due">Due ' + formatDate(toDate(a.dueDate)) + '</div>' +
         '</div>' +
         (eta ? '<div class="status-dot ' + eta.statusClass + '"></div>' : '');
       row.addEventListener('click', function () {
@@ -273,12 +277,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (a.sessions.length === 0) {
       sessionsEl.innerHTML = '<div class="no-sessions">No sessions logged yet.</div>';
     } else {
-      var sorted = a.sessions.slice().sort(function (s1, s2) { return s2.date - s1.date; });
+      var sorted = a.sessions.slice().sort(function (s1, s2) { return toDate(s2.date) - toDate(s1.date); });
       sorted.forEach(function (s) {
         var item = document.createElement('div');
         item.className = 'session-item';
         item.innerHTML =
-          '<span class="session-date">' + formatDate(s.date) + '</span>' +
+          '<span class="session-date">' + formatDate(toDate(s.date)) + '</span>' +
           '<span class="session-duration">' + formatHours(s.durationHours) + '</span>';
         sessionsEl.appendChild(item);
       });
@@ -312,7 +316,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var elapsed = (Date.now() - timerState.startTime) / 3600000;
     if (a && elapsed > 0.001) {
       a.hoursLogged += elapsed;
-      a.sessions.push({ date: new Date(), durationHours: elapsed });
+      a.sessions.push({ date: new Date().toISOString(), durationHours: elapsed });
+      saveData();
     }
     clearInterval(timerState.intervalId);
     timerState.assignmentId = null;
@@ -336,6 +341,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!a) return;
     if (timerState.assignmentId === a.id) stopTimer();
     a.completed = true;
+    saveData();
     navigateTo('assignments');
   });
 
@@ -403,6 +409,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var val = parseFloat(slider.value);
     sliderValue.textContent = val + ' hrs/day';
     appData.dailyAvailability = val;
+    saveData();
   });
 
   document.getElementById('add-form').addEventListener('submit', function (e) {
@@ -435,8 +442,8 @@ document.addEventListener('DOMContentLoaded', function () {
       subject: subject,
       type: type,
       size: formSize || 'Medium',
-      dateAssigned: dateAssigned ? new Date(dateAssigned + 'T00:00:00') : new Date(),
-      dueDate: new Date(dueDate + 'T00:00:00'),
+      dateAssigned: dateAssigned ? new Date(dateAssigned + 'T00:00:00').toISOString() : new Date().toISOString(),
+      dueDate: new Date(dueDate + 'T00:00:00').toISOString(),
       estimatedHours: estimate,
       hoursLogged: 0,
       sessions: [],
@@ -450,6 +457,7 @@ document.addEventListener('DOMContentLoaded', function () {
     suggestionNote.textContent = '';
     slider.value = appData.dailyAvailability;
     sliderValue.textContent = appData.dailyAvailability + ' hrs/day';
+    saveData();
     navigateTo('dashboard');
   });
 
