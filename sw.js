@@ -1,4 +1,4 @@
-var CACHE_NAME = 'ontrack-v2';
+var CACHE_NAME = 'ontrack-v3';
 var ASSETS = [
   './',
   './index.html',
@@ -31,8 +31,14 @@ self.addEventListener('activate', function (e) {
 
 self.addEventListener('fetch', function (e) {
   e.respondWith(
-    caches.match(e.request).then(function (cached) {
-      return cached || fetch(e.request);
+    fetch(e.request).then(function (response) {
+      var clone = response.clone();
+      caches.open(CACHE_NAME).then(function (cache) {
+        cache.put(e.request, clone);
+      });
+      return response;
+    }).catch(function () {
+      return caches.match(e.request);
     })
   );
 });

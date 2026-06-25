@@ -1,5 +1,5 @@
-var SUPABASE_URL = 'YOUR_SUPABASE_URL';
-var SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+var SUPABASE_URL = 'https://hwzeomglhfaeunqjcdkt.supabase.co';
+var SUPABASE_ANON_KEY = 'sb_publishable_sedomcWMVrbyp7kpGCYYAg_1muwhWf_';
 var supabaseClient = null;
 var supabaseReady = false;
 
